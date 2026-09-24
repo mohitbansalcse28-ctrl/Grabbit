@@ -78,6 +78,7 @@ npm run build          # → .output/chrome-mv3
 | `npm test` | Unit tests (parsers, quality picker, scheduler, subtitles, utilities) |
 | `npm run fixtures` | Generate real HLS/DASH/MP4/WebM test media (needs `ffmpeg`, or set `$FFMPEG`) |
 | `npm run test:e2e` | End-to-end tests: loads the built extension in Chromium and downloads real streams |
+| `npm run test:ui` | UI tests: clicks through the popup, the Downloads hub and every setting |
 | `npm run icons` | Re-render the PNG icons from the SVG logo |
 
 The E2E suite covers byte-exact ranged downloads, HLS (TS) behind a Referer check, choosing a variant, AES-128 decryption, fMP4 with a separate audio track found through a JSON API, merging DASH audio and video, audio-only output, WebM, pause and resume, record-while-playing, and the YouTube exclusion.

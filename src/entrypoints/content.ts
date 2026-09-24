@@ -70,10 +70,20 @@ class ContentAgent {
       setInterval(() => this.scan(), 4000);
       document.addEventListener('play', (e) => this.onMediaEvent(e), true);
       document.addEventListener('loadedmetadata', (e) => this.onMediaEvent(e), true);
-      chrome.storage.local.get('settings').then((r) => {
-        const s = r.settings as { overlay?: boolean; disabledOverlayHosts?: string[] } | undefined;
-        const host = location.hostname.replace(/^www\./, '');
-        if (s?.overlay !== false && !s?.disabledOverlayHosts?.includes(host)) mountOverlay();
+      // In-page button follows the settings live (no reload needed).
+      type OverlayPrefs = { overlay?: boolean; disabledOverlayHosts?: string[] } | undefined;
+      const host = location.hostname.replace(/^www\./, '');
+      const wanted = (s: OverlayPrefs) => s?.overlay !== false && !s?.disabledOverlayHosts?.includes(host);
+      let overlay: ReturnType<typeof mountOverlay>;
+      const apply = (s: OverlayPrefs) => {
+        if (wanted(s)) {
+          if (overlay) overlay.setEnabled(true);
+          else overlay = mountOverlay();
+        } else overlay?.setEnabled(false);
+      };
+      chrome.storage.local.get('settings').then((r) => apply(r.settings as OverlayPrefs));
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.settings) apply(changes.settings.newValue as OverlayPrefs);
       });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady, { once: true });

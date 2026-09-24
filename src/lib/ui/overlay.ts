@@ -57,7 +57,7 @@ interface Opt {
   best?: boolean;
 }
 
-export function mountOverlay() {
+export function mountOverlay(): { setEnabled(on: boolean): void } | undefined {
   if (window.innerWidth < 200) return;
   const host = document.createElement('grabbit-overlay');
   host.style.cssText = 'all:initial;position:fixed;top:0;left:0;width:0;height:0;z-index:2147483646;';
@@ -230,6 +230,15 @@ export function mountOverlay() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && panelOpen) closePanel();
   });
+  return {
+    setEnabled(on: boolean) {
+      host.style.display = on ? '' : 'none';
+      if (!on) {
+        closePanel();
+        pill.classList.remove('show');
+      }
+    },
+  };
 }
 
 async function loadOptions(video: HTMLVideoElement | null): Promise<Opt[] | { error: string }> {

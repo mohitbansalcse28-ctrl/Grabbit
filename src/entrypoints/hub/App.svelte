@@ -5,7 +5,7 @@
   import Logo from '@/components/Logo.svelte';
   import SettingsPanel from '@/components/Settings.svelte';
   import Sparkline from '@/components/Sparkline.svelte';
-  import { createJobs, createSettings } from '@/components/stores.svelte';
+  import { createJobs, createSettings, fileAction } from '@/components/stores.svelte';
   import { bg } from '@/lib/messaging';
   import { isActive, type Job } from '@/lib/types';
   import { formatBytes, formatSpeed } from '@/lib/util';
@@ -39,6 +39,23 @@
   });
 
   const go = (r: Route) => (location.hash = r);
+  let toast = $state('');
+  let toastTimer: ReturnType<typeof setTimeout>;
+  function flash(msg: string) {
+    toast = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast = ''), 3500);
+  }
+  async function clearHistory() {
+    if (!confirm(`Remove ${finished.length} item${finished.length === 1 ? '' : 's'} from history? Files stay in your Downloads folder.`)) return;
+    try {
+      await jobs.clear();
+      await jobs.refresh();
+      flash('History cleared');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   const running = $derived(jobs.list.filter((j) => isActive(j)));
   const waiting = $derived(jobs.list.filter((j) => j.status === 'paused'));
@@ -54,13 +71,17 @@
 
   async function jobAction(id: string, action: string) {
     const j = jobs.list.find((x) => x.id === id);
-    if (action === 'open' && j?.downloadId != null) return bg('download.open', { downloadId: j.downloadId }).catch(() => {});
-    if (action === 'show') return bg('download.show', { downloadId: j?.downloadId }).catch(() => {});
-    return jobs.action(id, action);
+    try {
+      if (action === 'open' || action === 'show') await fileAction(j, action);
+      else await jobs.action(id, action);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e));
+    }
   }
 </script>
 
 <div class="atmosphere"></div>
+{#if toast}<div class="toast" role="status">{toast}</div>{/if}
 <div class="shell">
   <aside>
     <div class="brand">
@@ -96,7 +117,7 @@
           <p class="muted">Parallel, adaptive, resumable. Watch every segment land.</p>
         </div>
         <div class="tools">
-          <button class="btn" onclick={() => bg('download.show', {})}><Icon name="folder" size={16} /> Open folder</button>
+          <button class="btn" onclick={() => chrome.downloads.showDefaultFolder()}><Icon name="folder" size={16} /> Open folder</button>
         </div>
       </div>
 
@@ -137,7 +158,7 @@
         </div>
         <div class="tools">
           <input class="input search" placeholder="Search titles, sites…" bind:value={query} />
-          <button class="btn danger" onclick={() => jobs.clear()} disabled={!finished.length}><Icon name="trash" size={15} /> Clear</button>
+          <button class="btn danger" onclick={clearHistory} disabled={!finished.length}><Icon name="trash" size={15} /> Clear</button>
         </div>
       </div>
       {#if !finished.length}
@@ -196,6 +217,20 @@
 </div>
 
 <style>
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    padding: 12px 18px;
+    border-radius: 14px;
+    background: var(--bg-3);
+    border: 1px solid var(--stroke-2);
+    box-shadow: var(--shadow);
+    font-weight: 600;
+    animation: pop-in 0.25s both;
+  }
   .shell {
     position: relative;
     z-index: 1;

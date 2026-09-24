@@ -4,7 +4,7 @@
   import JobCard from '@/components/JobCard.svelte';
   import Logo from '@/components/Logo.svelte';
   import MediaCard from '@/components/MediaCard.svelte';
-  import { createJobs, createSettings } from '@/components/stores.svelte';
+  import { createJobs, createSettings, fileAction } from '@/components/stores.svelte';
   import { bg } from '@/lib/messaging';
   import type { PageMeta } from '@/lib/detect/registry';
   import type { DetectedMedia, Job } from '@/lib/types';
@@ -31,6 +31,8 @@
   let turbo = $state(false);
   let pasteUrl = $state('');
   let pasteError = $state('');
+  let toolsOpen = $state(false);
+  let autoOpened = false;
   let timer: ReturnType<typeof setInterval>;
 
   async function load() {
@@ -41,7 +43,12 @@
       const prev = new Map(items.map((i) => [i.id, i]));
       items = r.items.map((i) => (i.info || !prev.get(i.id)?.info ? i : { ...i, info: prev.get(i.id)!.info }));
       tab = r.tab;
-      if (!expanded) expanded = groups.find((g) => !g.item.drm)?.item.id;
+      // Auto-open the first card and the tools panel once; after that the user is in control.
+      if (!autoOpened && r.items.length) {
+        autoOpened = true;
+        expanded = groups.find((g) => !g.item.drm)?.item.id;
+      }
+      if (!autoOpened && !r.items.length && r.tab.mse && !r.tab.drm) toolsOpen = true;
     } catch {
       /* worker waking up */
     } finally {
@@ -96,9 +103,13 @@
 
   async function jobAction(id: string, action: string) {
     const j = jobs.list.find((x) => x.id === id);
-    if (action === 'open' && j?.downloadId != null) return bg('download.open', { downloadId: j.downloadId });
-    if (action === 'show') return bg('download.show', { downloadId: j?.downloadId });
-    return jobs.action(id, action);
+    try {
+      if (action === 'open' || action === 'show') await fileAction(j, action);
+      else await jobs.action(id, action);
+    } catch (e) {
+      pasteError = e instanceof Error ? e.message : String(e);
+      toolsOpen = true;
+    }
   }
 
   async function toggleRecord() {
@@ -194,7 +205,7 @@
     {/if}
 
     {#if !tab.blocked && loaded && tabId >= 0}
-      <details class="tools" open={!groups.length && tab.mse && !tab.drm}>
+      <details class="tools" bind:open={toolsOpen}>
         <summary><Icon name="sparkle" size={14} /> More ways to grab</summary>
         {#if !tab.drm}
           <div class="tool">
@@ -314,7 +325,11 @@
   .spacer {
     flex: 1;
   }
+  .list > :global(*) {
+    flex-shrink: 0;
+  }
   .list {
+    min-height: 0;
     flex: 1;
     overflow-y: auto;
     padding: 2px 14px 12px;

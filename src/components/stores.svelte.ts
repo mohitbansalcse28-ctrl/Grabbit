@@ -80,3 +80,26 @@ export function applyTheme(theme: Theme) {
   mql ??= window.matchMedia('(prefers-color-scheme: dark)');
   mql.onchange = theme === 'auto' ? resolve : null;
 }
+
+/**
+ * Open / reveal a finished download. Must be called straight from a click handler:
+ * chrome.downloads.open() requires a user gesture, which doesn't survive messaging.
+ */
+export async function fileAction(job: Job | undefined, action: 'open' | 'show'): Promise<void> {
+  if (!job || job.downloadId == null) {
+    chrome.downloads.showDefaultFolder();
+    return;
+  }
+  const id = job.downloadId;
+  const [d] = await chrome.downloads.search({ id });
+  if (!d || d.exists === false || d.state !== 'complete') throw new Error('The file was moved or deleted from your Downloads folder.');
+  if (action === 'open') {
+    try {
+      await chrome.downloads.open(id);
+      return;
+    } catch {
+      /* e.g. no app registered for the file type → reveal it instead */
+    }
+  }
+  chrome.downloads.show(id);
+}

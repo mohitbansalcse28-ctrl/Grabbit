@@ -16,6 +16,7 @@ export default defineConfig({
       'webRequest',
       'declarativeNetRequestWithHostAccess',
       'downloads',
+      'downloads.open',
       'offscreen',
       'storage',
       'unlimitedStorage',

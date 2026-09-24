@@ -1,6 +1,6 @@
 {
   "name": "grabbit",
-  "description": "Grab any web video in the best quality — blazing-fast parallel downloads for HLS, DASH and direct media.",
+  "description": "Grab any web video in the best quality \u2014 blazing-fast parallel downloads for HLS, DASH and direct media.",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -15,7 +15,8 @@
     "test:e2e": "node tests/e2e/run.mjs",
     "fixtures": "node tests/fixtures/generate.mjs",
     "icons": "node scripts/icons.mjs",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "test:ui": "node tests/e2e/ui.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.0",

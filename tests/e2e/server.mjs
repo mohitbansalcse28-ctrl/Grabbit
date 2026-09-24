@@ -28,6 +28,11 @@ const PAGES = {
   fmp4: () => page('Ocean Waves 720p', `<video controls muted></video><script>fetch('/api/stream.json').then(r=>r.json())</script>`),
   dash: () => page('City Lights (DASH)', `<video controls muted></video><script>fetch('/media/dash/manifest.mpd')</script>`),
   slow: () => page('Slow Server Test', `<video src="/slow/direct.mp4" preload="metadata" controls muted></video>`),
+  multi: () =>
+    page(
+      'Three Videos Page',
+      `<div style="display:grid;gap:16px"><video src="/media/direct.mp4" controls muted autoplay loop></video><video src="/media/direct.webm" controls muted autoplay loop></video><video controls muted></video></div><script>fetch('/media/hls-ts/master.m3u8')</script>`,
+    ),
   mse: () =>
     page(
       'Obfuscated Player (MSE)',

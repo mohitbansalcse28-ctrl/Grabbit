@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { bg } from '@/lib/messaging';
   import { pickAudio, pickVariant, videoCodecFamily } from '@/lib/quality';
   import { buildRequest, describeItem, titleFor } from '@/lib/request';
@@ -42,10 +43,24 @@
   const isDirect = $derived(item.kind === 'direct');
   const preset = $derived(presetForHost(settings, hostOf(item.pageUrl)));
 
+  // Initialise user-editable fields once (and again only when settings really change) —
+  // the popup refreshes `item` every second and must never wipe what the user typed or picked.
+  let appliedSettings: Settings | undefined;
+  let titledFor = '';
   $effect(() => {
-    container = settings.container;
-    title = titleFor(item);
-    audioOnly = preset === 'audio' || !!item.audioOnly;
+    const s = settings;
+    if (s === appliedSettings) return;
+    appliedSettings = s;
+    untrack(() => {
+      container = s.container;
+      audioOnly = presetForHost(s, hostOf(item.pageUrl)) === 'audio' || !!item.audioOnly;
+    });
+  });
+  $effect(() => {
+    const id = item.id;
+    if (id === titledFor) return;
+    titledFor = id;
+    title = untrack(() => titleFor(item));
   });
 
   // Analyze lazily when expanded.
@@ -267,6 +282,7 @@
 
 <style>
   .card {
+    flex-shrink: 0;
     border-radius: 20px;
     background: var(--surface);
     border: 1px solid var(--stroke);

@@ -59,10 +59,16 @@ export async function getSettings(): Promise<Settings> {
   }
 }
 
-export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
-  const next = { ...(await getSettings()), ...patch };
-  await chrome.storage.local.set({ [KEY]: next });
-  return next;
+// Serialize read-modify-write cycles so rapid edits (sliders, typing) never overwrite each other.
+let saveChain: Promise<unknown> = Promise.resolve();
+export function saveSettings(patch: Partial<Settings>): Promise<Settings> {
+  const run = saveChain.then(async () => {
+    const next = { ...(await getSettings()), ...patch };
+    await chrome.storage.local.set({ [KEY]: next });
+    return next;
+  });
+  saveChain = run.catch(() => {});
+  return run;
 }
 
 export function onSettingsChanged(cb: (s: Settings) => void) {
