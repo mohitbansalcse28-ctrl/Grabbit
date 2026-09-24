@@ -1,0 +1,11 @@
+node_modules
+.output
+.wxt
+dist
+coverage
+tests/fixtures/media
+tests/e2e/.profile
+tests/e2e/downloads
+*.log
+.DS_Store
+web-ext.config.ts
