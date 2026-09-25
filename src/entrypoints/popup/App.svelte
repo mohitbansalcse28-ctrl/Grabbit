@@ -32,6 +32,8 @@
   let pasteUrl = $state('');
   let pasteError = $state('');
   let toolsOpen = $state(false);
+  let recMsg = $state('');
+  let recErr = $state(false);
   let autoOpened = false;
   let timer: ReturnType<typeof setInterval>;
 
@@ -65,6 +67,10 @@
     }
     const rec = await chrome.storage.session.get(`rec:${tabId}`).catch(() => ({}) as Record<string, unknown>);
     recording = !!rec[`rec:${tabId}`];
+    const onRec = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'session' && changes[`rec:${tabId}`]) recording = !!changes[`rec:${tabId}`].newValue;
+    };
+    chrome.storage.onChanged.addListener(onRec);
     await load();
     timer = setInterval(load, 1200);
   });
@@ -114,12 +120,16 @@
 
   async function toggleRecord() {
     const on = !recording;
+    recErr = false;
+    recMsg = on ? 'Starting…' : 'Saving…';
     try {
       await bg('record.toggle', { tabId, on, turbo });
       recording = on;
       await chrome.storage.session.set({ [`rec:${tabId}`]: on });
+      recMsg = on ? 'Recording — let the video play to the end (or press Stop & save).' : 'Saved! It’s being merged — see Downloads below.';
     } catch (e) {
-      pasteError = e instanceof Error ? e.message : String(e);
+      recErr = true;
+      recMsg = e instanceof Error ? e.message : String(e);
     }
   }
 
@@ -220,6 +230,7 @@
                 {recording ? 'Stop & save' : 'Start recording'}
               </button>
             </div>
+            {#if recMsg}<div class="recmsg" class:bad={recErr}>{recMsg}</div>{/if}
           </div>
         {/if}
         <div class="tool">
@@ -455,6 +466,13 @@
     50% {
       box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 25%, transparent);
     }
+  }
+  .recmsg {
+    font-size: 11.5px;
+    color: var(--mint);
+  }
+  .recmsg.bad {
+    color: var(--danger);
   }
   .perr {
     font-size: 11.5px;

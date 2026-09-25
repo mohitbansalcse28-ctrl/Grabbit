@@ -33,6 +33,35 @@ const PAGES = {
       'Three Videos Page',
       `<div style="display:grid;gap:16px"><video src="/media/direct.mp4" controls muted autoplay loop></video><video src="/media/direct.webm" controls muted autoplay loop></video><video controls muted></video></div><script>fetch('/media/hls-ts/master.m3u8')</script>`,
     ),
+  embed: () => page('Embedded Player Page', `<iframe src="/page/mseav.html" width="760" height="440" style="border:0" allow="autoplay"></iframe>`),
+  mseav: () =>
+    page(
+      'Hidden Stream Player',
+      `<video id="v" muted autoplay controls></video><script>
+const v = document.getElementById('v');
+const ms = new MediaSource();
+v.src = URL.createObjectURL(ms);
+ms.addEventListener('sourceopen', async () => {
+  const vb = ms.addSourceBuffer('video/webm; codecs="vp9"');
+  const ab = ms.addSourceBuffer('audio/webm; codecs="opus"');
+  const get = async (u) => new Uint8Array(await (await fetch(u)).arrayBuffer());
+  const append = (sb, b) => new Promise((r) => { sb.addEventListener('updateend', r, { once: true }); sb.appendBuffer(b); });
+  await append(vb, await get('/media/mse-webm/init.webm'));
+  await append(ab, await get('/media/mse-webm-audio/init.webm'));
+  window.__inits = true;
+  // Wait for the user to press record, like a player that streams as you watch.
+  while (!window.__go) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 1; i <= 10; i++) {
+    const n = String(i).padStart(3, '0');
+    await append(vb, await get('/media/mse-webm/seg-' + n + '.webm'));
+    await append(ab, await get('/media/mse-webm-audio/seg-' + n + '.webm'));
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  ms.endOfStream();
+  window.__done = true;
+});
+</script>`,
+    ),
   mse: () =>
     page(
       'Obfuscated Player (MSE)',

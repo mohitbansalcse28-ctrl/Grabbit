@@ -446,7 +446,15 @@ function setupMessages() {
     'hub.open': (p: { hash?: string } = {}) => openHub(p.hash),
 
     'record.toggle': async (p: { tabId: number; on: boolean; turbo?: boolean }) => {
+      const s = await getTab(p.tabId);
+      if (p.on && s.drm) throw new Error('This video is DRM-protected and can’t be recorded.');
+      if (p.on && !s.mse) throw new Error('No streaming player found yet — press play on the video first, then start recording.');
       await chrome.tabs.sendMessage(p.tabId, { target: 'content', type: 'record', on: p.on, turbo: p.turbo });
+      if (!p.on) await chrome.storage.session.set({ [`rec:${p.tabId}`]: false });
+    },
+    // Content scripts report the real recording state (e.g. auto-stop when the video ends).
+    'record.state': async (p: { on: boolean }, sender) => {
+      if (sender.tab?.id != null) await chrome.storage.session.set({ [`rec:${sender.tab.id}`]: p.on });
     },
 
     // From the offscreen engine.

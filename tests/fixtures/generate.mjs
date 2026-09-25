@@ -89,4 +89,12 @@ video/index.m3u8
     '-seg_duration', '2', '-use_template', '1', '-use_timeline', '0', '-dash_segment_type', 'webm', '-init_seg_name', 'init.webm', '-media_seg_name', 'seg-$Number%03d$.webm',
     '-f', 'dash', join(dir, 'manifest.mpd'));
 }
+// 8) Opus audio WebM chunks (second SourceBuffer for the MSE recorder test).
+{
+  const dir = join(OUT, 'mse-webm-audio');
+  mkdirSync(dir, { recursive: true });
+  ff('-f', 'lavfi', '-i', `sine=frequency=330:sample_rate=48000:duration=${D}`, '-c:a', 'libopus', '-b:a', '96k', '-vn',
+    '-seg_duration', '2', '-use_template', '1', '-use_timeline', '0', '-dash_segment_type', 'webm', '-init_seg_name', 'init.webm', '-media_seg_name', 'seg-$Number%03d$.webm',
+    '-f', 'dash', join(dir, 'manifest.mpd'));
+}
 console.log('fixtures ready in', OUT);

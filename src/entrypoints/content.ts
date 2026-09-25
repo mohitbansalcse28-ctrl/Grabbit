@@ -47,6 +47,7 @@ class ContentAgent {
   private flushTimer?: ReturnType<typeof setTimeout>;
   private metaSent = false;
   private recorder: RecorderRelay | null = null;
+  private mseSeen = false;
   readonly isTop = window === window.top;
 
   start() {
@@ -108,6 +109,7 @@ class ContentAgent {
     if (m.t === 'media' && m.url && m.kind) {
       this.queue({ url: m.url, kind: m.kind as ItemIn['kind'], mime: m.mime, source: m.source ?? 'hook' });
     } else if (m.t === 'mse') {
+      this.mseSeen = true;
       this.flags.mse = true;
       this.scheduleFlush();
     } else if (m.t === 'drm') {
@@ -254,10 +256,12 @@ class ContentAgent {
     if (on) {
       if (this.recorder) return;
       const video = largestVideo();
-      if (!video && !this.isTop) return;
+      // Only frames that actually run a MediaSource player record (embeds usually live in iframes).
+      if (!this.mseSeen || !video) return;
       this.recorder = new RecorderRelay(document.title, location.href);
       await this.recorder.open();
       this.port?.postMessage({ cmd: 'record', on: true });
+      bg('record.state', { on: true }).catch(() => {});
       if (video) {
         try {
           if (video.currentTime > 1) video.currentTime = 0;
@@ -279,6 +283,7 @@ class ContentAgent {
       }
       const r = this.recorder;
       this.recorder = null;
+      bg('record.state', { on: false }).catch(() => {});
       await r.finish();
     }
   }

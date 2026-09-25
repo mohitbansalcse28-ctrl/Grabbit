@@ -130,6 +130,84 @@ await test('Grab button in a card starts a real download', async () => {
   assert(job, 'no job');
 });
 
+// ─────────── Record while playing (via popup clicks) ───────────
+const ffmpeg = ['/tmp/claude-0/ff/ffmpeg'].find(existsSync) || 'ffmpeg';
+const { execFileSync } = await import('node:child_process');
+function probe(file) {
+  let out = '';
+  try {
+    execFileSync(ffmpeg, ['-hide_banner', '-i', file], { stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    out = String(e.stderr);
+  }
+  const d = out.match(/Duration: (\d+):(\d+):([\d.]+)/);
+  return { duration: d ? +d[1] * 3600 + +d[2] * 60 + +d[3] : 0, video: (out.match(/Video: (\w+)/) || [])[1], audio: (out.match(/Audio: (\w+)/) || [])[1] };
+}
+
+async function recordFlow(turbo) {
+  const before = new Set((await send('jobs.list')).map((j) => j.id));
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/page/embed.html`);
+  const frame = () => pg.frames().find((f) => f.url().includes('mseav'));
+  await until(async () => frame() && (await frame().evaluate(() => window.__inits === true)), 10000, 'player ready');
+  await pg.waitForTimeout(800);
+  const tab = await hub.evaluate(async (url) => (await chrome.tabs.query({ url }))[0].id, `${base}/page/embed.html`);
+  const pop = await ctx.newPage();
+  pop.on('pageerror', (e) => errors.push(`popup: ${e.message}`));
+  await pop.setViewportSize({ width: 408, height: 600 });
+  await pop.goto(`chrome-extension://${extId}/popup.html?tab=${tab}`);
+  const det = pop.locator('details.tools');
+  await det.waitFor();
+  if (!(await det.evaluate((d) => d.open))) await det.locator('summary').click();
+  if (turbo) await det.getByLabel('Turbo 8×').check();
+  await pop.getByRole('button', { name: 'Start recording' }).click();
+  await pop.getByRole('button', { name: 'Stop & save' }).waitFor({ timeout: 5000 });
+  await frame().evaluate(() => (window.__go = true));
+  await until(() => frame().evaluate(() => window.__done === true), 20000, 'player finished');
+  if (turbo) {
+    // No click: recording must stop by itself when the video ends, and the popup must notice.
+    await pop.getByRole('button', { name: 'Start recording' }).waitFor({ timeout: 25000 });
+  } else {
+    await pg.waitForTimeout(500);
+    await pop.getByRole('button', { name: 'Stop & save' }).click();
+    await pop.getByText(/Saved!/).waitFor({ timeout: 10000 });
+  }
+  const job = await until(async () => (await send('jobs.list')).find((j) => !before.has(j.id) && j.request.recorded && ['done', 'error'].includes(j.status)), 30000, 'recording job');
+  assert(job.status === 'done', `job ${job.status}: ${job.error}`);
+  assert(!job.warning, `warning: ${job.warning}`);
+  const [d] = await hub.evaluate((id) => chrome.downloads.search({ id }), job.downloadId);
+  const info = probe(d.filename);
+  assert(info.video === 'vp9' && info.audio === 'opus', `streams ${info.video}/${info.audio}`);
+  assert(info.duration > 15, `duration ${info.duration}`);
+  await pop.close();
+  await pg.close();
+  return job;
+}
+
+await test('Record while playing: iframe player, separate audio+video, Start → Stop & save', async () => {
+  await recordFlow(false);
+});
+
+await test('Record while playing: Turbo 8× auto-stops when the video ends', async () => {
+  await recordFlow(true);
+});
+
+await test('Record while playing: clear message when there is no streaming player', async () => {
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/page/direct.html`);
+  await pg.waitForTimeout(1000);
+  const tab = await hub.evaluate(async (url) => (await chrome.tabs.query({ url }))[0].id, `${base}/page/direct.html`);
+  const pop = await ctx.newPage();
+  await pop.goto(`chrome-extension://${extId}/popup.html?tab=${tab}`);
+  const det = pop.locator('details.tools');
+  await det.waitFor();
+  if (!(await det.evaluate((d) => d.open))) await det.locator('summary').click();
+  await pop.getByRole('button', { name: 'Start recording' }).click();
+  await pop.getByText(/No streaming player found/).waitFor({ timeout: 5000 });
+  await pop.close();
+  await pg.close();
+});
+
 // ─────────── Hub buttons ───────────
 await test('Hub: open file / show in folder buttons work', async () => {
   await hub.goto(`chrome-extension://${extId}/hub.html#history`);
@@ -144,7 +222,10 @@ await test('Hub: open file / show in folder buttons work', async () => {
 
 await test('Hub: remove one item, then Clear empties history', async () => {
   for (const t of await send('media.list', { tabId }).then((r) => r.items.slice(0, 2))) await send('quick.grab', { tabId, itemId: t.id });
-  await until(async () => (await send('jobs.list')).filter((j) => j.status === 'done').length >= 3, 30000, '3 done jobs');
+  await until(async () => {
+    const js = await send('jobs.list');
+    return js.filter((j) => j.status === 'done').length >= 3 && js.every((j) => ['done', 'error', 'canceled'].includes(j.status));
+  }, 30000, 'all jobs settled');
   await hub.goto(`chrome-extension://${extId}/hub.html#history`);
   const rows = hub.locator('article.job');
   await rows.first().waitFor();
