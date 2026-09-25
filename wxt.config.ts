@@ -12,7 +12,7 @@ export default defineConfig({
     description:
       'Grab web videos in the best available quality. Parallel turbo downloads for HLS, DASH, MP4 & WebM with full quality control.',
     minimum_chrome_version: '116',
-    homepage_url: 'https://github.com/mohitbansalcse28-ctrl/Grabbit',
+    homepage_url: 'https://github.com/mohitbansal25082006/Grabbit',
     permissions: [
       'webRequest',
       'declarativeNetRequestWithHostAccess',

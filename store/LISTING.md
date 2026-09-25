@@ -24,7 +24,7 @@ To regenerate the assets after UI changes: `npm run build && npm run fixtures &&
 3. **Account** tab: set your publisher/display name and a contact email, and **verify the email** (publishing is blocked until it is verified).
 4. Make the privacy policy reachable by URL (pick one):
    - Make this GitHub repository public and use
-     `https://github.com/mohitbansalcse28-ctrl/Grabbit/blob/main/PRIVACY.md` (after merging to `main`), or
+     `https://github.com/mohitbansal25082006/Grabbit/blob/main/PRIVACY.md` (after merging to `main`), or
    - Enable GitHub Pages / any web host and publish `PRIVACY.md` there.
 
 ## Step 1 — Upload the package
@@ -114,8 +114,8 @@ English (United States)
 
 ### Additional fields
 - **Official URL:** leave empty (needs a Search Console-verified domain), or pick your verified site.
-- **Homepage URL:** `https://github.com/mohitbansalcse28-ctrl/Grabbit`
-- **Support URL:** `https://github.com/mohitbansalcse28-ctrl/Grabbit/issues`
+- **Homepage URL:** `https://github.com/mohitbansal25082006/Grabbit`
+- **Support URL:** `https://github.com/mohitbansal25082006/Grabbit/issues`
 - **Mature content:** No
 
 ---
@@ -200,7 +200,7 @@ Then tick all three certifications:
 
 ### Privacy policy URL
 ```
-https://github.com/mohitbansalcse28-ctrl/Grabbit/blob/main/PRIVACY.md
+https://github.com/mohitbansal25082006/Grabbit/blob/main/PRIVACY.md
 ```
 (Use your hosted URL if you publish it elsewhere — the page must be publicly reachable.)
 
