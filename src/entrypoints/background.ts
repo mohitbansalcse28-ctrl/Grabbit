@@ -13,6 +13,7 @@ import {
   setThumb,
   updateMedia,
   visibleItems,
+  withThumb,
   type AddInput,
   type PageMeta,
 } from '@/lib/detect/registry';
@@ -40,25 +41,39 @@ async function hasOffscreen(): Promise<boolean> {
   return ctx.length > 0;
 }
 
+let engineReady = false;
+
+async function waitForEngine() {
+  for (let i = 0; i < 100; i++) {
+    try {
+      await send('offscreen-direct', 'ping');
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 40));
+    }
+  }
+  throw new Error('The download engine did not start');
+}
+
 async function ensureOffscreen() {
-  if (await hasOffscreen()) return;
+  if (engineReady && (await hasOffscreen())) return;
   if (!creating) {
     creating = (async () => {
-      await chrome.offscreen.createDocument({
-        url: OFFSCREEN_PATH,
-        reasons: [chrome.offscreen.Reason.WORKERS, chrome.offscreen.Reason.BLOBS],
-        justification: 'Runs the parallel download, decryption (AES-128 HLS) and remux engine.',
-      });
-      // Wait for the engine to register its listeners.
-      for (let i = 0; i < 50; i++) {
-        try {
-          await send('offscreen-direct', 'ping');
-          break;
-        } catch {
-          await new Promise((r) => setTimeout(r, 40));
-        }
+      // A document may exist but not have registered its listeners yet (or we restarted).
+      if (!(await hasOffscreen())) {
+        await chrome.offscreen
+          .createDocument({
+            url: OFFSCREEN_PATH,
+            reasons: [chrome.offscreen.Reason.WORKERS, chrome.offscreen.Reason.BLOBS],
+            justification: 'Runs the parallel download, decryption (AES-128 HLS) and remux engine.',
+          })
+          .catch((e: unknown) => {
+            if (!/single offscreen|already/i.test(String(e))) throw e;
+          });
       }
+      await waitForEngine();
       await send('offscreen-direct', 'settings', await getSettings()).catch(() => {});
+      engineReady = true;
     })().finally(() => (creating = null));
   }
   await creating;
@@ -66,7 +81,15 @@ async function ensureOffscreen() {
 
 async function engine<R = unknown>(type: string, payload?: unknown): Promise<R> {
   await ensureOffscreen();
-  return send<R>('offscreen-direct', type, payload);
+  try {
+    return await send<R>('offscreen-direct', type, payload);
+  } catch (e) {
+    // The engine document went away (e.g. closed by the browser) — recreate it once and retry.
+    if (!/Receiving end does not exist|No handler/i.test(String(e))) throw e;
+    engineReady = false;
+    await ensureOffscreen();
+    return send<R>('offscreen-direct', type, payload);
+  }
 }
 
 // ───────────────────────── DNR header rules ─────────────────────────
@@ -352,7 +375,7 @@ async function quickGrab(tabId: number, opts: { itemId?: string; url?: string; c
   if (item.drm) throw new Error('This video is DRM-protected and cannot be downloaded.');
   const analyzed = (await analyzeItem(tabId, item.id)) ?? item;
   if (analyzed.info?.drm) throw new Error('This video is DRM-protected and cannot be downloaded.');
-  const request = buildRequest(analyzed, settings, opts.choice);
+  const request = buildRequest(withThumb(await getTab(tabId), analyzed), settings, opts.choice);
   return startJob(request);
 }
 
@@ -370,6 +393,18 @@ async function openHub(hash = '') {
     await chrome.tabs.update(tabs[0].id, { active: true, url });
     if (tabs[0].windowId != null) await chrome.windows.update(tabs[0].windowId, { focused: true });
   } else await chrome.tabs.create({ url });
+}
+
+function asciiPath(path: string): string {
+  return path
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u2012-\u2015]/g, '-')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '')
+    .replace(/[^\x20-\x7e]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\/\s+|\s+\//g, '/');
 }
 
 // Map downloadId → jobId (persisted so it survives worker restarts).
@@ -462,13 +497,22 @@ function setupMessages() {
       setHeaderRule(p.scope, p.urls, p.pageUrl, p.headers),
     'dnr.clear': (p: { scope: string }) => clearHeaderRule(p.scope),
     'download.save': async (p: { jobId: string; part: string; url: string; filename: string; saveAs?: boolean }) => {
-      const id = await chrome.downloads.download({
-        url: p.url,
-        filename: p.filename,
-        saveAs: p.saveAs ?? settings.saveAs,
-        conflictAction: 'uniquify',
-      });
-      if (id == null) throw new Error(chrome.runtime.lastError?.message || 'Download was blocked');
+      // Some systems (e.g. Linux without a UTF-8 locale) reject non-ASCII names — never fail a
+      // finished download over its name: retry with an ASCII-safe name, then a generic one.
+      const ext = p.filename.match(/\.[a-z0-9]{2,5}$/i)?.[0] ?? '';
+      const candidates = [p.filename, asciiPath(p.filename), `Grabbit/video-${Date.now()}${ext}`];
+      let id: number | undefined;
+      let lastErr: unknown;
+      for (const filename of [...new Set(candidates)]) {
+        try {
+          id = await chrome.downloads.download({ url: p.url, filename, saveAs: p.saveAs ?? settings.saveAs, conflictAction: 'uniquify' });
+          break;
+        } catch (e) {
+          lastErr = e;
+          if (!/filename/i.test(String(e))) break;
+        }
+      }
+      if (id == null) throw lastErr instanceof Error ? lastErr : new Error('Download was blocked');
       await trackDownload(id, p.jobId, p.part);
       return id;
     },

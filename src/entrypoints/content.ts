@@ -219,9 +219,16 @@ class ContentAgent {
     if (this.metaSent) return;
     this.metaSent = true;
     const q = (sel: string) => (document.querySelector(sel) as HTMLMetaElement | null)?.content || undefined;
+    const abs = (u?: string) => {
+      try {
+        return u ? new URL(u, location.href).href : undefined;
+      } catch {
+        return undefined;
+      }
+    };
     const meta = {
       title: q('meta[property="og:title"]') || q('meta[name="twitter:title"]') || document.title || undefined,
-      image: q('meta[property="og:image"]') || q('meta[name="twitter:image"]') || undefined,
+      image: abs(q('meta[property="og:image"]') || q('meta[name="twitter:image"]')),
       description: q('meta[property="og:description"]'),
       favicon: (document.querySelector('link[rel~="icon"]') as HTMLLinkElement | null)?.href,
     };

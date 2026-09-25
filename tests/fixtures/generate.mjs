@@ -97,4 +97,21 @@ video/index.m3u8
     '-seg_duration', '2', '-use_template', '1', '-use_timeline', '0', '-dash_segment_type', 'webm', '-init_seg_name', 'init.webm', '-media_seg_name', 'seg-$Number%03d$.webm',
     '-f', 'dash', join(dir, 'manifest.mpd'));
 }
+// 9) Store-screenshot demo content: a multi-quality master and a large file for a rich mosaic.
+{
+  const dir = join(OUT, 'demo');
+  mkdirSync(dir, { recursive: true });
+  const v = (bw, w, h, fps, codecs, uri) => `#EXT-X-STREAM-INF:BANDWIDTH=${bw},RESOLUTION=${w}x${h},FRAME-RATE=${fps},CODECS="${codecs},mp4a.40.2"\n${uri}\n`;
+  writeFileSync(
+    join(dir, 'master.m3u8'),
+    '#EXTM3U\n#EXT-X-VERSION:3\n' +
+      v(16000000, 3840, 2160, 30, 'avc1.640033', '../hls-ts/v720/index.m3u8') +
+      v(9000000, 2560, 1440, 30, 'avc1.640032', '../hls-ts/v720/index.m3u8') +
+      v(5200000, 1920, 1080, 60, 'avc1.64002a', '../hls-ts/v720/index.m3u8') +
+      v(2800000, 1280, 720, 30, 'avc1.64001f', '../hls-ts/v720/index.m3u8') +
+      v(1400000, 854, 480, 30, 'avc1.64001e', '../hls-ts/v360/index.m3u8') +
+      v(900000, 640, 360, 30, 'avc1.64001e', '../hls-ts/v360/index.m3u8'),
+  );
+  ff('-f', 'lavfi', '-i', 'mandelbrot=size=1280x720:rate=30', '-f', 'lavfi', '-i', 'sine=frequency=220:sample_rate=48000', '-t', '40', ...x264('12000k'), ...aac, '-movflags', '+faststart', join(OUT, 'demo-big.mp4'));
+}
 console.log('fixtures ready in', OUT);

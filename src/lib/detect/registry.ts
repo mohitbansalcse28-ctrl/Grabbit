@@ -182,14 +182,17 @@ export async function setThumb(tabId: number, src: string, dataUrl: string) {
   markDirty(tabId);
 }
 
+/** Fill in a thumbnail from captured frames or the page's og:image when the item has none. */
+export function withThumb(s: TabState, i: DetectedMedia): DetectedMedia {
+  const thumb = i.thumbnail || s.thumbs?.[i.url] || s.thumbs?.['*'] || s.meta?.image;
+  return thumb && thumb !== i.thumbnail ? { ...i, thumbnail: thumb } : i;
+}
+
 /** Visible, sorted items for the UI (manifests first, then biggest files). */
 export function visibleItems(s: TabState, minSize = 0): DetectedMedia[] {
   const items = s.items.filter((i) => !i.hidden && !(i.kind === 'direct' && i.size != null && i.size < minSize && !i.info));
   const rank = (i: DetectedMedia) => (i.drm ? 0 : i.kind === 'direct' ? (i.audioOnly ? 1 : 2) : 3);
   return items
-    .map((i) => {
-      const thumb = i.thumbnail || s.thumbs?.[i.url] || s.thumbs?.['*'] || s.meta?.image;
-      return thumb && thumb !== i.thumbnail ? { ...i, thumbnail: thumb } : i;
-    })
+    .map((i) => withThumb(s, i))
     .sort((a, b) => rank(b) - rank(a) || (b.size ?? 0) - (a.size ?? 0) || b.detectedAt - a.detectedAt);
 }

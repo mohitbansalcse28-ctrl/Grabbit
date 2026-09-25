@@ -68,6 +68,10 @@ npm run build          # → .output/chrome-mv3
 
 > **Brave:** if a site's player doesn't load with Shields up, Grabbit can't see the stream either. Lower Shields for that site.
 
+## Publishing
+
+Everything for the Chrome Web Store is in [`store/`](store/): the ready-to-upload package, the store icon, five 1280×800 screenshots, promo tiles, and [`store/LISTING.md`](store/LISTING.md) with every dashboard field filled in (description, permission justifications, privacy answers, reviewer test instructions). The privacy policy is in [`PRIVACY.md`](PRIVACY.md). `npm run store` regenerates the images.
+
 ## Development
 
 | Command | What it does |

@@ -69,6 +69,10 @@ function navigatorLang() {
 
 // ───────────────────────── HLS → MediaInfo ─────────────────────────
 
+/** Stable, collision-free id for an HLS variant (several variants may share one playlist URL). */
+export const hlsVariantId = (v: { uri: string; bandwidth: number; width?: number; height?: number; codecs?: string; frameRate?: number }) =>
+  `v:${hash([v.uri, v.bandwidth, v.width, v.height, v.codecs, v.frameRate].join('|'))}`;
+
 export function hlsMasterToInfo(master: HlsMaster, sample?: HlsMedia): MediaInfo {
   const duration = sample?.totalDuration || undefined;
   const live = sample ? !sample.endList : false;
@@ -111,7 +115,7 @@ export function hlsMasterToInfo(master: HlsMaster, sample?: HlsMedia): MediaInfo
     const hdr = isHdrRange(v.videoRange);
     const hasSepAudio = !!v.audio && audios.some((a) => a.groupId === v.audio);
     videos.push({
-      id: `v:${hash(v.uri)}`,
+      id: hlsVariantId(v),
       url: v.uri,
       width: v.width,
       height: v.height,

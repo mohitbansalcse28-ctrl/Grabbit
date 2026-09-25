@@ -93,4 +93,13 @@ describe('HLS parser', () => {
     expect(info.drm).toBe(false);
     expect(info.live).toBe(false);
   });
+
+  it('gives unique ids to variants that share one playlist URL', () => {
+    const m = parseHls(
+      '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=9000000,RESOLUTION=3840x2160\nv.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720\nv.m3u8\n',
+      'https://a.com/m.m3u8',
+    ) as HlsMaster;
+    const ids = hlsMasterToInfo(m).videos.map((v) => v.id);
+    expect(new Set(ids).size).toBe(2);
+  });
 });

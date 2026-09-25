@@ -10,3 +10,4 @@ tests/e2e/downloads
 .DS_Store
 web-ext.config.ts
 tests/e2e/downloads-ui
+store/.build

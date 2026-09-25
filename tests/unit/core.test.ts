@@ -15,6 +15,9 @@ describe('classify', () => {
     expect(classify('https://a.com/s.mp3', 'audio/mpeg')).toEqual({ kind: 'direct', audioOnly: true });
     expect(classify('https://a.com/seg-001.ts', 'video/mp2t')).toEqual({ segment: true });
     expect(classify('https://a.com/chunk-12.m4s')).toEqual({ segment: true });
+    expect(classify('https://a.com/v/seg-001.webm', 'video/webm')).toEqual({ segment: true });
+    expect(classify('https://a.com/v/init.mp4', 'video/mp4')).toEqual({ segment: true });
+    expect(classify('https://a.com/v/my-video.webm', 'video/webm')).toEqual({ kind: 'direct', audioOnly: false });
     expect(classify('https://a.com/page.html', 'text/html')).toBeNull();
     expect(classify('https://a.com/video.mp4', 'text/html')).toBeNull();
   });

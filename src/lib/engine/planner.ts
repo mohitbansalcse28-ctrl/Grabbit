@@ -1,7 +1,7 @@
 // Turn a JobRequest into concrete download tracks/parts.
 import { parseDash, stitchPeriods, type DashRepresentation } from '../parsers/dash';
 import { isClearKey, parseHls, seqToIv, type HlsMaster, type HlsMedia } from '../parsers/hls';
-import { hasVideoCodec } from '../quality';
+import { hasVideoCodec, hlsVariantId } from '../quality';
 import type { JobRequest } from '../types';
 import { extFromMime, extFromUrl, hash } from '../util';
 import { fetchText, HeaderScope, probe } from './net';
@@ -144,7 +144,7 @@ async function planHls(req: JobRequest, ctx: PlanContext): Promise<Plan> {
     const want = req.video;
     const variants = master.variants;
     const variant =
-      (want && variants.find((v) => `v:${hash(v.uri)}` === want.id)) ||
+      (want && variants.find((v) => hlsVariantId(v) === want.id)) ||
       (want && variants.find((v) => v.height === want.height && v.bandwidth === want.bandwidth && v.codecs === want.codecs)) ||
       (want && variants.find((v) => v.height === want.height)) ||
       (!want && req.audioOnly ? undefined : [...variants].filter((v) => hasVideoCodec(v.codecs)).sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || b.bandwidth - a.bandwidth)[0]);

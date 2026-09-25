@@ -12,7 +12,7 @@ const AUDIO_EXT = new Set(['mp3', 'm4a', 'ogg', 'oga', 'opus', 'wav', 'flac', 'w
 const SEGMENT_EXT = new Set(['ts', 'm4s', 'cmfv', 'cmfa', 'm4f', 'mp4a', 'm4v_seg', 'fmp4']);
 
 /** Fragments in the URL path that mark a chunk of a larger stream. */
-const SEGMENT_PATH = /(^|[/_\-.])(seg|segment|chunk|frag|fragment)[-_]?\d+|\/range\/\d+-\d+|init\.(mp4|m4s)$|[?&](range|bytestart)=/i;
+const SEGMENT_PATH = /(^|[/_\-.])(seg|segment|chunk|frag|fragment)[-_]?\d+|\/range\/\d+-\d+|(^|[/_\-.])init\.(mp4|m4s|webm)(\?|$)|[?&](range|bytestart)=/i;
 
 export function normalizeMime(ct?: string | null): string {
   return (ct || '').split(';')[0].trim().toLowerCase();
@@ -32,7 +32,8 @@ export function classify(url: string, contentType?: string | null): Classificati
   if (isVideoMime || isAudioMime || VIDEO_EXT.has(ext) || AUDIO_EXT.has(ext)) {
     // A generic binary mime with a non-media extension is not media.
     if (!isVideoMime && !isAudioMime && mime && !/octet-stream|binary|force-download|x-download/.test(mime)) return null;
-    if (SEGMENT_PATH.test(url) && ext !== 'mp4' && ext !== 'webm') return { segment: true };
+    // Pieces of a stream a player fetches itself (seg-001.webm, init.mp4, chunk_12.mp4…).
+    if (SEGMENT_PATH.test(url)) return { segment: true };
     const audioOnly = isAudioMime || (!isVideoMime && AUDIO_EXT.has(ext));
     return { kind: 'direct', audioOnly };
   }

@@ -16,11 +16,29 @@ const TYPES = {
   '.bin': 'application/octet-stream',
 };
 
-const page = (title, body) => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-<meta property="og:title" content="${title}"><style>body{margin:0;background:#111;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}video{width:720px;max-width:90vw;border-radius:12px;background:#000}</style></head>
+const page = (title, body, head = '') => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+<meta property="og:title" content="${title}">${head}<style>body{margin:0;background:#111;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}video{width:720px;max-width:90vw;border-radius:12px;background:#000}</style></head>
 <body>${body}</body></html>`;
 
+// Original poster art for store screenshots.
+const POSTERS = {
+  aurora: `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050a24"/><stop offset=".55" stop-color="#10204d"/><stop offset="1" stop-color="#1b1640"/></linearGradient><linearGradient id="a" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3dffc4" stop-opacity="0"/><stop offset=".3" stop-color="#3dffc4" stop-opacity=".75"/><stop offset=".65" stop-color="#8b5cf6" stop-opacity=".65"/><stop offset="1" stop-color="#ff3d7f" stop-opacity="0"/></linearGradient><filter id="b"><feGaussianBlur stdDeviation="22"/></filter></defs><rect width="1280" height="720" fill="url(#s)"/><g filter="url(#b)"><path d="M-50 260 C 200 120 380 330 640 200 S 1050 90 1330 230 L1330 330 C 1050 200 860 400 640 300 S 200 260 -50 380Z" fill="url(#a)"/><path d="M-50 180 C 260 60 520 250 760 150 S 1100 60 1330 140 L1330 190 C 1100 120 900 260 760 220 S 260 140 -50 250Z" fill="url(#a)" opacity=".6"/></g><g fill="#fff">${Array.from({ length: 70 }, (_, i) => `<circle cx="${(i * 187) % 1280}" cy="${(i * 97) % 330}" r="${(i % 3) * 0.6 + 0.5}" opacity="${0.3 + (i % 5) * 0.12}"/>`).join('')}</g><path d="M0 560 L150 430 L240 500 L380 360 L520 520 L640 440 L760 540 L900 400 L1040 520 L1150 450 L1280 540 L1280 720 L0 720Z" fill="#0a0f26"/><path d="M0 620 L200 540 L330 600 L520 520 L700 610 L880 540 L1060 620 L1280 560 L1280 720 L0 720Z" fill="#060818"/><rect y="640" width="1280" height="80" fill="#0b1433" opacity=".9"/><path d="M0 660 h1280" stroke="#3dffc4" stroke-opacity=".25" stroke-width="3"/></svg>`,
+  ocean: `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><defs><linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e6aa8"/><stop offset=".5" stop-color="#083a6b"/><stop offset="1" stop-color="#020b22"/></linearGradient><linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bff4ff" stop-opacity=".55"/><stop offset="1" stop-color="#bff4ff" stop-opacity="0"/></linearGradient><filter id="b"><feGaussianBlur stdDeviation="8"/></filter></defs><rect width="1280" height="720" fill="url(#w)"/><g filter="url(#b)">${[180, 360, 560, 760, 980, 1140].map((x, i) => `<path d="M${x} 0 L${x + 60 + i * 8} 0 L${x - 120 + i * 20} 720 L${x - 190} 720Z" fill="url(#r)" opacity="${0.35 + (i % 3) * 0.15}"/>`).join('')}</g><g fill="#9ee7ff" opacity=".5">${Array.from({ length: 40 }, (_, i) => `<circle cx="${(i * 233) % 1280}" cy="${200 + ((i * 131) % 480)}" r="${1 + (i % 4)}"/>`).join('')}</g><path d="M640 420 c90 -40 190 -20 250 30 c-60 20 -150 40 -250 10 c-40 30 -70 40 -90 30 c20 -20 30 -40 20 -60 c20 -10 50 -12 70 -10z" fill="#041a33" opacity=".85"/><path d="M0 640 C 300 590 500 690 800 640 S 1150 610 1280 650 L1280 720 L0 720Z" fill="#020714"/></svg>`,
+  city: `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0b33"/><stop offset=".7" stop-color="#4a1350"/><stop offset="1" stop-color="#ff6b1a"/></linearGradient></defs><rect width="1280" height="720" fill="url(#g)"/><circle cx="640" cy="470" r="170" fill="#ff9e3d" opacity=".85"/>${Array.from({ length: 22 }, (_, i) => { const w = 40 + (i * 37) % 60; const h = 160 + (i * 89) % 300; const x = i * 60 - 20; return `<rect x="${x}" y="${720 - h}" width="${w}" height="${h}" fill="#12061f"/>` + Array.from({ length: 6 }, (_, k) => `<rect x="${x + 8}" y="${730 - h + k * 40}" width="6" height="10" fill="${k % 2 ? '#ff3d7f' : '#3dffc4'}" opacity=".7"/>`).join(''); }).join('')}</svg>`,
+};
+
 const PAGES = {
+  'demo-hls': () =>
+    page(
+      'Northern Lights Over Lofoten — 4K Timelapse',
+      `<video controls muted poster="/poster/aurora.svg"></video><script>fetch('/media/demo/master.m3u8')</script>`,
+      '<meta property="og:image" content="/poster/aurora.svg">',
+    ),
+  'demo-big': () =>
+    page('Deep Ocean — Episode 1: Into the Blue', `<video src="/slower/demo-big.mp4" preload="metadata" controls muted poster="/poster/ocean.svg"></video>`, '<meta property="og:image" content="/poster/ocean.svg">'),
+  'demo-city': () =>
+    page('Neon Nights — City Walk 1080p', `<video src="/media/direct.mp4" preload="none" controls muted poster="/poster/city.svg"></video>`, '<meta property="og:image" content="/poster/city.svg">'),
+  'demo-embed': () => page('Mountain Stories — Live Session', `<iframe src="/page/mseav.html" width="760" height="440" style="border:0" allow="autoplay"></iframe>`, '<meta property="og:image" content="/poster/aurora.svg">'),
   direct: () => page('Aurora Over The Fjords', `<video src="/media/direct.mp4" controls muted autoplay loop playsinline></video>`),
   webm: () => page('Neon City Walk', `<video src="/media/direct.webm" controls muted autoplay loop></video>`),
   hls: () => page('Mountain Timelapse (HLS)', `<video controls muted poster="/poster.svg"></video><script>fetch('/protected/hls-ts/master.m3u8').then(r=>r.text())</script>`),
@@ -96,6 +114,12 @@ export function startServer(port = 0) {
       if (!PAGES[name]) return res.writeHead(404).end();
       res.writeHead(200, { 'content-type': 'text/html' });
       return res.end(PAGES[name]());
+    }
+    if (path.startsWith('/poster/')) {
+      const name = path.slice(8).replace(/\.svg$/, '');
+      if (!POSTERS[name]) return res.writeHead(404).end();
+      res.writeHead(200, { 'content-type': 'image/svg+xml' });
+      return res.end(POSTERS[name]);
     }
     if (path === '/poster.svg') {
       res.writeHead(200, { 'content-type': 'image/svg+xml' });
